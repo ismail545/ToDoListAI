@@ -1,8 +1,9 @@
 package com.example.todolist2.Presentation;
 
 import com.example.todolist2.Services.ToDoListService;
-import com.example.todolist2.Services.impl.ToDoListImpl;
 import com.example.todolist2.domain.ToDoList;
+import com.example.todolist2.dto.ToDoListDTO;
+import com.example.todolist2.mapper.ToDoListMapper;
 import lombok.extern.java.Log;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -11,16 +12,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @RestController
 @Log
 public class ToDoListController {
 
-    private ToDoListService todolistService;
+    private final ToDoListService todolistService;
+    private final ToDoListMapper toDoListMapper;
 
     @Autowired
-    public ToDoListController(ToDoListService todolistService) {
+    public ToDoListController(ToDoListService todolistService, ToDoListMapper toDoListMapper) {
         this.todolistService = todolistService;
+        this.toDoListMapper = toDoListMapper;
     }
 
     @GetMapping("/test")
@@ -29,43 +33,48 @@ public class ToDoListController {
     }
 
     @GetMapping(path = "/todolist")
-    public Iterable<ToDoList> getAllToDoList() {
-        return todolistService.findAll();
+    public List<ToDoListDTO> getAllToDoList() {
+        return StreamSupport.stream(todolistService.findAll().spliterator(), false)
+                .map(toDoListMapper::toDto)
+                .collect(Collectors.toList());
     }
 
-
     @GetMapping(path = "/todolist/{id}")
-    public ToDoList getToDoListById(@PathVariable long id) {
-        return todolistService.findById(id);
+    public ToDoListDTO getToDoListById(@PathVariable long id) {
+        ToDoList toDoList = todolistService.findById(id);
+        return toDoListMapper.toDto(toDoList);
     }
 
     @GetMapping(path = "/todolist/ids/{ids}")
-    public Iterable<ToDoList> getAllToDoListByIds(@PathVariable String ids) {
-        // Split the comma-separated string into an array
+    public List<ToDoListDTO> getAllToDoListByIds(@PathVariable String ids) {
         List<Long> idList = Arrays.stream(ids.split(","))
-                .map(Long::valueOf) // Convert each to Long
-                .collect(Collectors.toList()); // Collect as a list
+                .map(Long::valueOf)
+                .collect(Collectors.toList());
 
-        // Pass the list to the service
-        return todolistService.findAllById(idList);
+        return StreamSupport.stream(todolistService.findAllById(idList).spliterator(), false)
+                .map(toDoListMapper::toDto)
+                .collect(Collectors.toList());
     }
 
-
     @PostMapping(path = "/todolist")
-    public ToDoList createToDoList(@RequestBody ToDoList toDoList) {
-        return todolistService.save(toDoList);
+    public ToDoListDTO createToDoList(@RequestBody ToDoListDTO toDoListDTO) {
+        ToDoList toDoList = toDoListMapper.toEntity(toDoListDTO);
+        ToDoList savedToDoList = todolistService.save(toDoList);
+        return toDoListMapper.toDto(savedToDoList);
     }
 
     @PutMapping(path = "/todolist/{id}")
-    public ToDoList fullupdateToDoListById(@PathVariable("id") Long id, @RequestBody ToDoList todolist ){
-        todolistService.fullUpdateToDoListById(id, todolist);
-        return todolist;
+    public ToDoListDTO fullupdateToDoListById(@PathVariable("id") Long id, @RequestBody ToDoListDTO todolistDTO) {
+        ToDoList toDoList = toDoListMapper.toEntity(todolistDTO);
+        ToDoList updatedToDoList = todolistService.fullUpdateToDoListById(id, toDoList);
+        return toDoListMapper.toDto(updatedToDoList);
     }
 
     @PatchMapping(path = "/todolist/{id}")
-    public ToDoList updateToDoListById(@PathVariable("id") Long id, @RequestBody ToDoList toDoList) {
-        return todolistService.updateToDoListById(id, toDoList);
-
+    public ToDoListDTO updateToDoListById(@PathVariable("id") Long id, @RequestBody ToDoListDTO toDoListDTO) {
+        ToDoList toDoList = toDoListMapper.toEntity(toDoListDTO);
+        ToDoList updatedToDoList = todolistService.updateToDoListById(id, toDoList);
+        return toDoListMapper.toDto(updatedToDoList);
     }
 
     @DeleteMapping(path = "/todolist/{id}")
@@ -73,7 +82,4 @@ public class ToDoListController {
         todolistService.deleteById(id);
         return ResponseEntity.ok().build();
     }
-
 }
-
-
